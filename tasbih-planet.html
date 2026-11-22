@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tasbih Planet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Figtree:wght@400;600&display=swap">
+<style>
+:root{--bg:#04050d;--ink:#eef1ff;--mute:#a4acd0;--line:rgba(255,255,255,.16);--accent:#7fb4ff;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 Figtree,system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:manipulation;outline:none;cursor:pointer}
+main{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:max(14px,env(safe-area-inset-top,0px)) 16px max(14px,env(safe-area-inset-bottom,0px));pointer-events:none}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.brand{font:500 13px Unbounded,sans-serif;letter-spacing:.02em}
+button{font:inherit;font-size:13px;color:inherit;background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:999px;padding:7px 14px;pointer-events:auto;cursor:pointer;backdrop-filter:blur(8px)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button[aria-pressed=false]{opacity:.5}
+.info{margin-top:10px;text-shadow:0 1px 12px #000}
+h1{font:700 clamp(26px,6vw,40px)/1.1 Unbounded,sans-serif;margin:0 0 6px}
+.info p{margin:0;color:var(--mute);max-width:40ch}
+.bottom{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;text-shadow:0 1px 12px #000}
+.tg{display:flex;align-items:center;gap:8px;color:var(--mute)}
+.tg button.on{background:var(--accent);border-color:var(--accent);color:#06080f;font-weight:600}
+#num{font:700 clamp(76px,20vw,136px)/1 Unbounded,sans-serif;font-variant-numeric:tabular-nums;text-shadow:0 0 40px var(--accent)}
+.bar{width:min(320px,72vw);height:4px;border-radius:4px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+#meta{color:var(--mute);font-size:13px;min-height:20px}
+nav{display:flex;gap:8px;overflow-x:auto;pointer-events:auto;padding:2px;width:100%;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:none}
+nav button i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;background:var(--c)}
+nav button.on{border-color:var(--accent);background:rgba(255,255,255,.16)}
+@media (min-width:700px){nav{justify-content:center}}
+</style></head><body>
+<canvas id="c" tabindex="0" role="button" aria-label="Ketuk planet untuk menghitung"></canvas>
+<main>
+<div>
+<header><div class="brand">Tasbih Planet</div><div><button id="snd" aria-pressed="true">Suara</button> <button id="rst">Reset</button></div></header>
+<section class="info"><h1 id="pn"></h1><p id="pf"></p></section>
+</div>
+<section class="bottom">
+<div class="tg">Target <button data-t="11">11</button><button data-t="33">33</button><button data-t="99">99</button></div>
+<div id="num">0</div>
+<div class="bar"><i id="bar"></i></div>
+<div id="meta"></div>
+<nav id="nav"></nav>
+</section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),TAU=Math.PI*2,rnd=Math.random;
+const R=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cv=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+const tex=c=>new THREE.CanvasTexture(c);
+function surf(o){const c=cv(512,256),x=c.getContext('2d'),g=x.createLinearGradient(0,0,0,256);
+ o.stops.forEach((s,i)=>g.addColorStop(i/(o.stops.length-1),s));x.fillStyle=g;x.fillRect(0,0,512,256);
+ for(let i=0;i<(o.noise||0);i++){x.globalAlpha=.05+rnd()*.08;x.fillStyle=rnd()<.5?'#000':'#fff';x.beginPath();x.ellipse(rnd()*512,rnd()*256,10+rnd()*60,2+rnd()*(o.band?4:14),0,0,TAU);x.fill()}
+ for(let i=0;i<(o.land?46:0);i++){x.globalAlpha=.9;x.fillStyle=rnd()<.7?o.land:'#8a7a4a';x.beginPath();x.ellipse(rnd()*512,50+rnd()*156,8+rnd()*34,5+rnd()*16,rnd()*3,0,TAU);x.fill()}
+ for(let i=0;i<(o.craters||0);i++){const px=rnd()*512,py=rnd()*256,r=3+rnd()*14;x.globalAlpha=.28;x.fillStyle='#000';x.beginPath();x.arc(px,py,r,0,TAU);x.fill();x.globalAlpha=.14;x.strokeStyle='#fff';x.stroke()}
+ x.globalAlpha=1;if(o.caps){x.fillStyle=o.caps;x.fillRect(0,0,512,12);x.fillRect(0,244,512,12)}
+ if(o.spot){const s=o.spot;x.fillStyle=s.col;x.beginPath();x.ellipse(s.x,s.y,s.rx,s.ry,0,0,TAU);x.fill();x.strokeStyle='rgba(255,255,255,.25)';x.lineWidth=2;x.stroke()}
+ return tex(c)}
+function cloudTex(col,n){const c=cv(512,256),x=c.getContext('2d');x.fillStyle=col;for(let i=0;i<n;i++){x.globalAlpha=.1+rnd()*.25;x.beginPath();x.ellipse(rnd()*512,30+rnd()*196,8+rnd()*40,2+rnd()*8,0,0,TAU);x.fill()}return tex(c)}
+function glowTex(){const c=cv(128,128),x=c.getContext('2d'),g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,240,190,1)');g.addColorStop(.25,'rgba(255,175,70,.55)');g.addColorStop(1,'rgba(255,120,20,0)');x.fillStyle=g;x.fillRect(0,0,128,128);return tex(c)}
+const GT=glowTex(),MT=surf({stops:['#aaa','#ccc','#999'],noise:40,craters:45});
+
+const D=[
+{n:'Merkurius',c:'#c9c2b8',r:.85,sun:1.6,spin:.25,t:{stops:['#8a8680','#a39d94','#7b7771'],noise:90,craters:70},m:[],
+ f:'Planet terdekat dari Matahari, jadi Matahari tampak sangat besar. Siangnya 430 °C, malamnya −180 °C.'},
+{n:'Venus',c:'#e3b878',r:1.4,sun:1.1,spin:-.1,atm:['#ffcf80',1.1],cl:['#fff1c8',260],t:{stops:['#d9a85f','#ecc486','#c8934d'],noise:120,band:1},m:[],
+ f:'Selimut awan asam membuatnya terpanas, sekitar 465 °C. Berputar terbalik, dan satu harinya lebih panjang dari satu tahunnya.'},
+{n:'Bumi',c:'#4f9bff',r:1.45,sun:.8,spin:.3,tz:.4,atm:['#5aa7ff',1.2],cl:['#ffffff',200],t:{stops:['#0d3b78','#1b66b8','#0d3b78'],noise:30,land:'#3f8f4a',caps:'#f4f8ff'},
+ m:[{d:2.9,s:.4,col:'#c9c9c9',sp:.45},{d:2.2,a:1,sp:.8}],
+ f:'Satu-satunya planet berpenghuni, 71% permukaannya laut. Bulan mengitarinya, dan seorang astronot melayang di dekatnya.'},
+{n:'Mars',c:'#d2673a',r:1.1,sun:.55,spin:.3,tz:.44,atm:['#ff9a6a',.5],t:{stops:['#b5532f','#cf703f','#a2492a'],noise:130,craters:22,caps:'#f1e6dc'},
+ m:[{d:1.9,s:.14,col:'#8b7b6d',sp:2.2,irr:1},{d:2.6,s:.1,col:'#a89a8c',sp:1.3,irr:1}],
+ f:'Si planet merah karena karat besi. Punya dua bulan kecil, Phobos dan Deimos, serta gunung tertinggi di tata surya, Olympus Mons.'},
+{n:'Jupiter',c:'#d8b48a',r:2.3,sun:.35,spin:.7,t:{stops:['#d9c7a8','#b88a5b','#e8d9bf','#a3683e','#dcc9a5','#c48f62','#e6d6b8','#9d6f4a','#d8c4a0'],noise:170,band:1,spot:{x:340,y:162,rx:38,ry:20,col:'#b6492c'}},
+ m:[{d:3.3,s:.2,col:'#e8d36a',sp:1.6},{d:3.9,s:.18,col:'#e8e2d4',sp:1.1},{d:4.6,s:.26,col:'#9c8f80',sp:.7},{d:5.3,s:.23,col:'#5f564e',sp:.45}],
+ f:'Planet terbesar, dengan Bintik Merah Raksasa, badai yang berlangsung ratusan tahun. Empat bulan Galileo mengitarinya.'},
+{n:'Saturnus',c:'#e6cf9a',r:1.7,sun:.25,spin:.6,tx:.5,tz:.3,ring:[2.2,3.8,'#e0cc9e',.9],t:{stops:['#d8c08a','#ecd9a8','#c9ae78','#e4d0a0'],noise:120,band:1},
+ m:[{d:4.7,s:.22,col:'#d9a54e',sp:.5}],
+ f:'Cincin esnya paling megah di tata surya. Massa jenisnya lebih kecil dari air, jadi secara teori ia bisa terapung.'},
+{n:'Uranus',c:'#8fe0e8',r:1.5,sun:.18,spin:.4,tz:1.7,tx:.35,atm:['#8de2ee',.9],ring:[2,2.55,'#a8dde0',.45],t:{stops:['#7fd3dc','#a4eaf0','#7fd3dc'],noise:40,band:1},
+ m:[{d:3.2,s:.16,col:'#b9b4ad',sp:.8}],
+ f:'Berputar miring hampir 98°, seolah menggelinding di orbitnya. Cincinnya tegak dan sangat tipis.'},
+{n:'Neptunus',c:'#4a73ff',r:1.5,sun:.14,spin:.45,tz:.5,atm:['#4a73ff',1.2],ring:[2.1,2.5,'#7f93d8',.2],t:{stops:['#1b3a9e','#2f56d6','#1b3a9e'],noise:110,band:1,spot:{x:300,y:140,rx:30,ry:16,col:'#122270'}},
+ m:[{d:3.3,s:.2,col:'#d8d2ca',sp:-.9}],
+ f:'Planet terjauh, dengan angin tercepat, sekitar 2.000 km/jam, dan Bintik Gelap. Bulan Triton mengorbit berlawanan arah.'}
+];
+
+const renderer=new THREE.WebGLRenderer({canvas:$('#c'),antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();scene.background=new THREE.Color('#04050d');
+const cam=new THREE.PerspectiveCamera(45,1,.1,200);cam.position.z=12;const TH=Math.tan(22.5*Math.PI/180);
+const light=new THREE.DirectionalLight('#fff4e0',1.8);scene.add(light,new THREE.AmbientLight('#8090c0',.4));
+const stars=(()=>{const p=[];for(let i=0;i<1300;i++){const v=new THREE.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize().multiplyScalar(45+rnd()*25);p.push(v)}
+ const s=new THREE.Points(new THREE.BufferGeometry().setFromPoints(p),new THREE.PointsMaterial({color:'#fff',size:.22,transparent:true,opacity:.85}));scene.add(s);return s})();
+const sunG=new THREE.Group(),sunS=new THREE.Sprite(new THREE.SpriteMaterial({map:GT,blending:THREE.AdditiveBlending,depthWrite:false}));
+sunS.scale.setScalar(6);sunG.add(new THREE.Mesh(new THREE.SphereGeometry(1,32,24),new THREE.MeshBasicMaterial({color:'#ffb347'})),sunS);scene.add(sunG);
+
+const comet=new THREE.Group(),tl=new THREE.Group();tl.rotation.z=Math.atan2(.38,1);
+[[.13,2.6,.35],[.3,3.6,.12]].forEach(([r,h,o])=>{const g=new THREE.ConeGeometry(r,h,16,1,true);g.rotateZ(-Math.PI/2);g.translate(h/2,0,0);tl.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:'#9fd0ff',transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})))});
+const ch=new THREE.Sprite(new THREE.SpriteMaterial({map:GT,color:'#9fd0ff',blending:THREE.AdditiveBlending,depthWrite:false}));ch.scale.setScalar(1.3);
+comet.add(tl,ch,new THREE.Mesh(new THREE.SphereGeometry(.12,16,12),new THREE.MeshBasicMaterial({color:'#eaf6ff'})));comet.visible=false;comet.position.z=-3;scene.add(comet);
+
+function ringMesh(a,b,col,op){const g=new THREE.RingGeometry(a,b,96,1),p=g.attributes.position,uv=g.attributes.uv,v=new THREE.Vector3();
+ for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);uv.setXY(i,(v.length()-a)/(b-a),.5)}
+ const c=cv(256,4),x=c.getContext('2d');x.fillStyle=col;for(let i=0;i<80;i++){if(i>48&&i<53)continue;x.globalAlpha=.25+rnd()*.7;x.fillRect(i*3.2,0,4,4)}
+ const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:tex(c),side:THREE.DoubleSide,transparent:true,opacity:op,depthWrite:false}));m.rotation.x=-Math.PI/2;return m}
+function astro(){const g=new THREE.Group(),w=new THREE.MeshStandardMaterial({color:'#f4f6fa',roughness:.6});
+ const add=(geo,mat,x,y,z,rx=0,rz=0)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.rotation.set(rx,0,rz);g.add(m);return m};
+ add(new THREE.CylinderGeometry(.09,.1,.22,12),w,0,0,0);add(new THREE.SphereGeometry(.095,16,12),w,0,.19,0);
+ add(new THREE.SphereGeometry(.07,16,12),new THREE.MeshStandardMaterial({color:'#e0a53a',metalness:.9,roughness:.2}),0,.19,.045).scale.set(1,.8,.6);
+ add(new THREE.BoxGeometry(.15,.2,.07),new THREE.MeshStandardMaterial({color:'#9aa3b5'}),0,.01,-.1);
+ [-1,1].forEach(s=>{add(new THREE.CylinderGeometry(.03,.03,.17,8),w,s*.13,.04,.02,.5,s*.6);add(new THREE.CylinderGeometry(.036,.036,.19,8),w,s*.045,-.2,0,0,s*.12)});
+ g.scale.setScalar(1.6);return g}
+
+let cur,pg,body,spinM,cloud,mo=[],appear=1,bs=1,hw=1,hh=1,pulse=0,boost=0,T=0,cWait=6,S={p:2,t:33,snd:true,d:{}};
+function build(d){const g=new THREE.Group();body=new THREE.Group();body.rotation.set(d.tx||0,0,d.tz||0);g.add(body);mo=[];cloud=null;
+ spinM=new THREE.Mesh(new THREE.SphereGeometry(d.r,64,48),new THREE.MeshStandardMaterial({map:surf(d.t),roughness:.9}));body.add(spinM);
+ if(d.cl){cloud=new THREE.Mesh(new THREE.SphereGeometry(d.r*1.02,48,36),new THREE.MeshStandardMaterial({map:cloudTex(d.cl[0],d.cl[1]),transparent:true,depthWrite:false}));body.add(cloud)}
+ if(d.atm)g.add(new THREE.Mesh(new THREE.SphereGeometry(d.r*1.2,48,36),new THREE.ShaderMaterial({uniforms:{c:{value:new THREE.Color(d.atm[0])},p:{value:d.atm[1]}},
+  vertexShader:'varying vec3 n;void main(){n=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:'varying vec3 n;uniform vec3 c;uniform float p;void main(){float i=pow(max(.72-dot(n,vec3(0,0,1.)),0.),3.);gl_FragColor=vec4(c,1.)*i*p*2.;}',
+  side:THREE.BackSide,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false})));
+ if(d.ring)body.add(ringMesh(...d.ring));
+ (d.m||[]).forEach((m,i)=>{const o=new THREE.Group();o.rotation.set(.25+i*.1,0,i*.2);const pts=[];for(let k=0;k<64;k++)pts.push(new THREE.Vector3(Math.cos(k/64*TAU)*m.d,0,Math.sin(k/64*TAU)*m.d));
+  o.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:'#fff',transparent:true,opacity:.13})));
+  let ms;if(m.a)ms=astro();else{ms=new THREE.Mesh(new THREE.SphereGeometry(m.s,24,18),new THREE.MeshStandardMaterial({map:MT,color:m.col,roughness:1}));if(m.irr)ms.scale.set(1.5,.9,1)}
+  o.add(ms);(d.tz>1?body:g).add(o);mo.push({ms,d:m.d,sp:m.sp,ph:rnd()*TAU,a:m.a})});
+ d.ext=Math.max(d.r*1.4,d.ring?d.ring[1]:0,...(d.m||[]).map(m=>m.d));return g}
+function layout(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();hh=cam.position.z*TH;hw=hh*cam.aspect;
+ sunG.position.set(-hw*.62,hh*.5,-3);light.position.set(sunG.position.x,sunG.position.y,6);
+ if(cur){bs=Math.min(1,hw*.96/cur.ext,hh*.4/(cur.r*1.2));pg.position.y=hh*.1}}
+
+const ac={x:null};
+function tone(f,t0,d,v){const a=ac.x,o=a.createOscillator(),g=a.createGain();o.frequency.value=f;g.gain.setValueAtTime(v,a.currentTime+t0);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+t0+d);o.connect(g).connect(a.destination);o.start(a.currentTime+t0);o.stop(a.currentTime+t0+d+.02)}
+function beep(long,k){try{ac.x=ac.x||new(window.AudioContext||window.webkitAudioContext)();if(ac.x.state==='suspended')ac.x.resume();
+ if(long)[523,659,784,1047].forEach((f,i)=>tone(f,i*.12,.5,.14));else tone(560+k*480,0,.08,.1)}catch(e){}}
+const vib=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
+const st=()=>S.d[S.p]||(S.d[S.p]={c:0,r:0,t:0});
+const save=()=>{try{localStorage.setItem('tasbih-planet',JSON.stringify(S))}catch(e){}};
+function update(){const s=st();$('#num').textContent=s.c;$('#bar').style.width=s.c/S.t*100+'%';
+ $('#meta').textContent=s.t?`Putaran ${s.r} · Total ${s.t}`:'Ketuk planet atau tekan Spasi untuk menghitung';
+ document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',+b.dataset.t===S.t));
+ document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('on',i===S.p));$('#snd').setAttribute('aria-pressed',S.snd)}
+function tap(){const s=st();if(s.c>=S.t)s.c=0;s.c++;s.t++;pulse=1;boost=2.5;
+ if(s.c>=S.t){s.r++;S.snd&&beep(1);vib([60,40,120]);launch()}else{S.snd&&beep(0,s.c/S.t);vib(8)}
+ save();update();if(!R)$('#num').animate([{transform:'scale(1.12)'},{transform:'scale(1)'}],{duration:140})}
+function pick(i){S.p=i;cur=D[i];if(pg)scene.remove(pg);pg=build(cur);scene.add(pg);appear=R?1:0;sunG.scale.setScalar(cur.sun);
+ document.documentElement.style.setProperty('--accent',cur.c);$('#pn').textContent=cur.n;$('#pf').textContent=cur.f;layout();update();save()}
+function launch(){comet.visible=true;comet.position.set(hw+4,hh*(.15+rnd()*.6),-3)}
+
+try{const o=JSON.parse(localStorage.getItem('tasbih-planet'));if(o&&o.d)S=Object.assign(S,o)}catch(e){}
+D.forEach((d,i)=>{const b=document.createElement('button');b.style.setProperty('--c',d.c);b.innerHTML='<i></i>'+d.n;b.onclick=()=>pick(i);$('#nav').appendChild(b)});
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.t=+b.dataset.t;st().c=0;save();update()});
+$('#snd').onclick=()=>{S.snd=!S.snd;save();update()};
+let rt;$('#rst').onclick=e=>{const b=e.target;if(!rt){b.textContent='Yakin reset?';rt=setTimeout(()=>{b.textContent='Reset';rt=0},2200)}else{clearTimeout(rt);rt=0;b.textContent='Reset';S.d[S.p]={c:0,r:0,t:0};save();update()}};
+$('#c').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
+addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&!e.target.closest('button')){e.preventDefault();tap()}});
+addEventListener('resize',layout);
+pick(Math.min(S.p,D.length-1));
+
+let last=performance.now();
+(function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;
+ const k=(R?.3:1)*(1+boost);T+=dt*k;pulse*=Math.exp(-8*dt);boost*=Math.exp(-3*dt);appear=Math.min(1,appear+dt/.7);
+ const t=appear-1,e=1+2.70158*t*t*t+1.70158*t*t;
+ pg.scale.setScalar(Math.max(.001,bs*e*(1+pulse*.06)));
+ spinM.rotation.y+=dt*cur.spin*k;if(cloud)cloud.rotation.y+=dt*(Math.abs(cur.spin)+.1)*k;
+ mo.forEach(m=>{const a=T*m.sp+m.ph;m.ms.position.set(Math.cos(a)*m.d,0,Math.sin(a)*m.d);if(m.a){m.ms.rotation.x+=dt*.7;m.ms.rotation.y+=dt*.5}});
+ stars.rotation.y+=dt*.004;
+ if(!R&&!comet.visible&&(cWait-=dt)<=0){launch();cWait=10+rnd()*8}
+ if(comet.visible){comet.position.x-=dt*6.5;comet.position.y-=dt*6.5*.38;if(comet.position.x<-hw-6)comet.visible=false}
+ renderer.render(scene,cam)})(last);
+</script></body></html>
